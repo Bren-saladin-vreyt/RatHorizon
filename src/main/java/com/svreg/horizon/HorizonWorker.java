@@ -63,6 +63,9 @@ public final class HorizonWorker {
 	private static long genCount = 0, genStart = 0;
 	private static boolean speedTold = false;
 	private static boolean genError = false;
+	private static volatile String genErrorText = null;
+	private static volatile boolean settings = false;
+	private static volatile long known = 0;
 
 	private HorizonWorker() {
 	}
@@ -90,6 +93,35 @@ public final class HorizonWorker {
 
 	public static void offer(int tx, int tz, int cell) {
 		offers.add(new long[]{tx, tz, cell});
+	}
+
+	public static void settingsChanged() {
+		settings = true;
+	}
+
+	/** for /horizon: what the map is doing */
+	public static String[] status() {
+		Session s = session;
+		if (s == null) {
+			return new String[]{"peta belum aktif (masuk ke dunia dulu)"};
+		}
+		long secs = Math.max(1L, (System.currentTimeMillis() - genStart) / 1000L);
+		String gen;
+		if (s.level() == null) {
+			gen = "generator: nggak jalan (bukan singleplayer, peta cuma dari chunk yang kamu datangi)";
+		} else if (!HorizonConfig.generator) {
+			gen = "generator: OFF (/horizon generator on)";
+		} else if (genErrorText != null) {
+			gen = "generator: GAGAL - " + genErrorText;
+		} else {
+			gen = "generator: " + (scanDone ? "selesai" : "jalan") + ", sudah " + Math.max(0, ring - 1) * 8 + " / " + HorizonConfig.radius + " blok, "
+					+ genCount / secs + " titik/detik";
+		}
+		return new String[]{
+				"dunia " + s.world() + " / " + s.dim() + ", pusat peta " + centerX * 8 + ", " + centerZ * 8,
+				gen,
+				"titik yang udah dikenal di sekitar kamu: " + known + " dari " + (long) N * N
+		};
 	}
 
 	public static int[] takePicture() {
@@ -126,6 +158,7 @@ public final class HorizonWorker {
 			genStart = System.currentTimeMillis();
 			speedTold = false;
 			genError = false;
+			genErrorText = null;
 			dir = session == null ? null : FabricLoader.getInstance().getGameDir().resolve("svreghorizon").resolve(session.world()).resolve(session.dim());
 			changes = 1;
 			builtX = builtZ = Integer.MIN_VALUE;
@@ -149,7 +182,14 @@ public final class HorizonWorker {
 		}
 		int cx = centerX, cz = centerZ;
 		// the generator: walk outward from the player, filling what is still unknown
-		if (session.level() != null) {
+		if (settings) {
+			settings = false;
+			restartScan(cx, cz);
+			genError = false;
+			genErrorText = null;
+		}
+		int rings = Math.min(HALF, HorizonConfig.radius / 8);
+		if (session.level() != null && HorizonConfig.generator) {
 			if (Math.abs(cx - scanX) > 16 || Math.abs(cz - scanZ) > 16) {
 				restartScan(cx, cz); // moved on: start again from the player (known samples are skipped quickly)
 			}
@@ -173,7 +213,7 @@ public final class HorizonWorker {
 				}
 				if (++step >= Math.max(1, 8 * ring)) {
 					step = 0;
-					if (++ring >= HALF) {
+					if (++ring >= rings) {
 						scanDone = true;
 					}
 				}
@@ -184,6 +224,7 @@ public final class HorizonWorker {
 					} catch (Throwable t) {
 						if (!genError) {
 							genError = true;
+							genErrorText = t.toString();
 							SvregHorizon.LOG.error("SvregHorizon: world generator failed", t);
 							HorizonMap.chat("generator dunia gagal: " + t);
 						}
@@ -192,7 +233,7 @@ public final class HorizonWorker {
 					}
 				}
 				// progress, for testing: 100 .. 2000 blocks around you done
-				int doneBlocks = scanDone ? HALF * 8 : (ring - 1) * 8;
+				int doneBlocks = scanDone ? rings * 8 : (ring - 1) * 8;
 				while (reported < REPORT_AT.length && doneBlocks >= REPORT_AT[reported]) {
 					HorizonMap.chat("generator: sampai " + REPORT_AT[reported] + " blok di sekitar kamu udah keisi");
 					reported++;
@@ -201,7 +242,7 @@ public final class HorizonWorker {
 		}
 		long now = System.currentTimeMillis();
 		// once, 15 s in: how fast the generator runs on this device (to tell slow from stuck)
-		if (!speedTold && session.level() != null && now - genStart > 15_000L) {
+		if (!speedTold && session.level() != null && HorizonConfig.generator && now - genStart > 15_000L) {
 			speedTold = true;
 			HorizonMap.chat("generator: " + genCount * 1000L / Math.max(1L, now - genStart) + " titik/detik, sudah " + Math.max(0, ring - 1) * 8 + " blok"
 					+ (genError ? " (berhenti karena error)" : ""));
@@ -241,14 +282,20 @@ public final class HorizonWorker {
 	/** the texture's picture for the 512 x 512 samples around the player */
 	private static void build(int cx, int cz) {
 		int[] pic = new int[N * N];
+		long k = 0;
 		for (int sy = 0; sy < N; sy++) {
 			int tz = cz + Math.floorMod(sy - cz + HALF, N) - HALF;
 			for (int sx = 0; sx < N; sx++) {
 				int tx = cx + Math.floorMod(sx - cx + HALF, N) - HALF;
-				pic[sx + sy * N] = Cell.pixelABGR(get(tx, tz), tx, tz);
+				int v = get(tx, tz);
+				if (v != 0) {
+					k++;
+				}
+				pic[sx + sy * N] = Cell.pixelABGR(v, tx, tz);
 			}
 		}
 		picture.set(pic);
+		known = k;
 		changes = 0;
 		builtX = cx;
 		builtZ = cz;

@@ -26,6 +26,8 @@ public class SvregHorizon implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		LOG.info("SvregHorizon loaded");
+		HorizonConfig.load();
+		HorizonCommands.register();
 		ClientLifecycleEvents.CLIENT_STARTED.register(client -> HorizonMap.init());
 		ClientTickEvents.END_CLIENT_TICK.register(client -> HorizonMap.tick(client));
 		ClientChunkEvents.CHUNK_LOAD.register((level, chunk) -> ChunkSampler.onLoad(level, chunk));

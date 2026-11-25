@@ -19,3 +19,12 @@ Peta nempel ke dunia dan muter (wrap): titik peta (tx, tz) = blok 8tx..8tx+7, ad
 
 ## Build
 Tiap push ke `main` dibuild GitHub Actions; jar ada di release `latest`.
+
+## Perintah di chat
+
+- `/horizon` — status peta: sumber data, sampai mana generator, kecepatannya, error kalau ada
+- `/horizon jarak <256-2048>` — seberapa jauh generator dunia ngisi peta (blok). Makin kecil makin cepet selesai dan makin enteng
+- `/horizon generator on|off` — nyalain/matiin generator dunia (singleplayer)
+
+Seberapa jauh daratan jauh *digambar* diatur di shader: menu Daratan Jauh → Jarak.
+Setelan disimpan di `.minecraft/config/svreghorizon.properties`.

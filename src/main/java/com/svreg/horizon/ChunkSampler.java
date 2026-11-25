@@ -7,7 +7,7 @@ import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 
-/** a chunk the client loaded: its surface, one sample per 8 x 8 blocks (4 per chunk), queued for the worker */
+/** a chunk the client loaded: its surface, one sample per 8 x 8 blocks (4 per chunk, the ground without trees), queued for the worker */
 public final class ChunkSampler {
 	private ChunkSampler() {
 	}
@@ -16,17 +16,33 @@ public final class ChunkSampler {
 		try {
 			int x0 = chunk.getPos().getMinBlockX(), z0 = chunk.getPos().getMinBlockZ();
 			BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+			int[] hs = new int[64];
 			for (int j = 0; j < 2; j++) {
 				for (int i = 0; i < 2; i++) {
-					int lx = i * 8 + 4, lz = j * 8 + 4;
-					int top = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, lx, lz); // y of the top block
-					if (top <= level.getMinY()) {
-						continue; // nothing there (void, or not filled yet)
+					// the ground of this 8 x 8: leaves left out (MOTION_BLOCKING_NO_LEAVES), and of its 64 columns the
+					// lower quarter (sorted, the 16th), so a tree trunk or a lone pole does not make the whole patch a
+					// tower -- the same kind of ground the world generator gives (no trees)
+					int n = 0;
+					for (int lz = j * 8; lz < j * 8 + 8; lz++) {
+						for (int lx = i * 8; lx < i * 8 + 8; lx++) {
+							int top = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, lx, lz); // y of the top block
+							if (top > level.getMinY()) {
+								hs[n++] = top;
+							}
+						}
 					}
-					p.set(x0 + lx, top, z0 + lz);
-					boolean water = chunk.getBlockState(p).getFluidState().is(FluidTags.WATER);
-					int kind = Biomes.kind(chunk.getNoiseBiome(QuartPos.fromBlock(x0 + lx), QuartPos.fromBlock(top), QuartPos.fromBlock(z0 + lz)));
-					HorizonWorker.offer(Math.floorDiv(x0 + lx, 8), Math.floorDiv(z0 + lz, 8), Cell.pack(top + 1, kind, water, true));
+					if (n < 32) {
+						continue; // mostly nothing there (void, or not filled yet)
+					}
+					java.util.Arrays.sort(hs, 0, n);
+					int top = hs[n / 4];
+					int cx = x0 + i * 8 + 4, cz = z0 + j * 8 + 4;
+					// water: the middle column's top is water and it is not above the ground picked
+					int mid = chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, i * 8 + 4, j * 8 + 4);
+					p.set(cx, mid, cz);
+					boolean water = mid <= top + 1 && chunk.getBlockState(p).getFluidState().is(FluidTags.WATER);
+					int kind = Biomes.kind(chunk.getNoiseBiome(QuartPos.fromBlock(cx), QuartPos.fromBlock(top), QuartPos.fromBlock(cz)));
+					HorizonWorker.offer(Math.floorDiv(cx, 8), Math.floorDiv(cz, 8), Cell.pack(top + 1, kind, water, true));
 				}
 			}
 		} catch (Throwable t) {
