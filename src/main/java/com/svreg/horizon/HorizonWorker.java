@@ -59,6 +59,9 @@ public final class HorizonWorker {
 	private static int scanX, scanZ, ring, step;
 	private static boolean scanDone;
 	private static int reported = 0;
+	private static final int[] REPORT_AT = {100, 250, 500, 1000, 2000};
+	private static long genCount = 0, genStart = 0;
+	private static boolean speedTold = false;
 	private static boolean genError = false;
 
 	private HorizonWorker() {
@@ -119,6 +122,9 @@ public final class HorizonWorker {
 			tiles.clear();
 			session = pending;
 			reported = 0;
+			genCount = 0;
+			genStart = System.currentTimeMillis();
+			speedTold = false;
 			genError = false;
 			dir = session == null ? null : FabricLoader.getInstance().getGameDir().resolve("svreghorizon").resolve(session.world()).resolve(session.dim());
 			changes = 1;
@@ -174,6 +180,7 @@ public final class HorizonWorker {
 				if (get(tx, tz) == 0) {
 					try {
 						set(tx, tz, generate(gen, rs, sea, tx, tz), false);
+						genCount++;
 					} catch (Throwable t) {
 						if (!genError) {
 							genError = true;
@@ -184,15 +191,21 @@ public final class HorizonWorker {
 						break;
 					}
 				}
-				// progress, for testing: 500, 1000, 2000 blocks around you done
+				// progress, for testing: 100 .. 2000 blocks around you done
 				int doneBlocks = scanDone ? HALF * 8 : (ring - 1) * 8;
-				if (reported < 3 && doneBlocks >= (500 << reported)) {
-					HorizonMap.chat("generator: sampai " + (500 << reported) + " blok di sekitar kamu udah keisi");
+				while (reported < REPORT_AT.length && doneBlocks >= REPORT_AT[reported]) {
+					HorizonMap.chat("generator: sampai " + REPORT_AT[reported] + " blok di sekitar kamu udah keisi");
 					reported++;
 				}
 			}
 		}
 		long now = System.currentTimeMillis();
+		// once, 15 s in: how fast the generator runs on this device (to tell slow from stuck)
+		if (!speedTold && session.level() != null && now - genStart > 15_000L) {
+			speedTold = true;
+			HorizonMap.chat("generator: " + genCount * 1000L / Math.max(1L, now - genStart) + " titik/detik, sudah " + Math.max(0, ring - 1) * 8 + " blok"
+					+ (genError ? " (berhenti karena error)" : ""));
+		}
 		if (now - lastBuild > 500L && (changes > 0 || cx != builtX || cz != builtZ)) {
 			build(cx, cz);
 			lastBuild = now;
