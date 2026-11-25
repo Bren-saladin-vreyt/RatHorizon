@@ -1,26 +1,21 @@
-# SvregHorizon
+# SvregHorizon (repo RatHorizon)
 
 "Distant Horizons versi kita" untuk shaderpack **SvregSky Shader Remade** (Iris, Fabric, Minecraft 1.21.11).
-Mod ini mengirim peta tinggi dunia ke shader lewat tekstur dinamis di TextureManager (tanpa mixin ke Iris).
+Mod ini nyimpen peta permukaan dunia asli di sekitar pemain (1 titik tiap 8x8 blok, 512x512 titik = 4096x4096 blok)
+dan ngirim ke shader sebagai tekstur dinamis `svreghorizon:dynamic/heightmap` (di shader: `customTexture.flMap`).
+Tanpa mixin ke Iris.
 
-## Tahap 1: mod uji
-Mod mendaftarkan dua tekstur 512x512 yang gambarnya bergeser tiap detik:
-- `svreghorizon:dynamic/heightmap` (A)
-- `svreghorizon:textures/heightmap.png` (B)
+## Sumber data
+- **Chunk yang dimuat** (singleplayer dan server): permukaan asli, termasuk pohon dan bangunan.
+- **Generator dunia** (khusus singleplayer): tinggi tanah ditanya langsung ke generator tanpa bikin chunk, dari
+  dekat ke jauh, di thread belakang (kerja 5 ms, istirahat 8 ms).
+- Semua disimpan per dunia + dimensi di `.minecraft/svreghorizon/` (file tile 64x64 titik), jadi besok nggak ngulang.
 
-Shaderpack (opsi **Tes Tekstur Mod**) menampilkan kotak di pojok kanan atas:
-- **A** (garis merah) = `customTexture.flTestA` → id A
-- **B** (garis hijau) = `customTexture.flTestB` → id B
-- **C** (garis biru) = `texture.composite.flTestC` → id A (sintaks lain)
-
-Di bawah tiap kotak ada bar tes filter: kiri = hasil baca tekstur, kanan = abu-abu pembanding.
-Kiri **abu-abu sama kayak kanan** = filter LINEAR (yang dibutuhkan tahap 2); kiri **hitam/putih** = NEAREST.
-
-Arti isi kotak:
-- gradasi pelangi yang geser tiap detik = tekstur kebaca dan ikut ke-update
-- gradasi diam = kebaca tapi nggak ke-update
-- kotak-kotak ungu-hitam = id nggak ketemu (tekstur "missing")
-- hitam/putih polos = sampler nggak kepasang
+## Format tekstur (per piksel)
+Peta nempel ke dunia dan muter (wrap): titik peta (tx, tz) = blok 8tx..8tx+7, ada di piksel (tx mod 512, tz mod 512).
+- R, G = tinggi + 128 (byte atas, byte bawah)
+- B = jenis biome (lihat `Biomes.java`, shader punya daftar yang sama)
+- A = 128 diketahui | 64 air | 16 tanda | periode z << 2 | periode x (kelipatan 512 titik, buat nolak piksel basi)
 
 ## Build
 Tiap push ke `main` dibuild GitHub Actions; jar ada di release `latest`.
