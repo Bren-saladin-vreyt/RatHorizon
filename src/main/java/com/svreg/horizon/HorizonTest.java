@@ -51,6 +51,10 @@ public final class HorizonTest {
 		return "bukit tes dipasang " + Math.round(dist) + " blok di depan kamu (render distance kamu " + rd + " blok). Lihat ke arah depan sekarang";
 	}
 
+	public static boolean isOn() {
+		return on;
+	}
+
 	public static void stop() {
 		on = false;
 	}

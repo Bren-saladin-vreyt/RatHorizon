@@ -7,7 +7,8 @@ import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.network.chat.Component;
 
 /**
- * /horizon                 the map's state (where its data comes from, how far the generator got, how fast)
+ * /horizon                 opens the menu
+ * /horizon info            the map's state in chat (where its data comes from, how far the generator got, how fast)
  * /horizon jarak <blok>    how far the world generator fills the map (256 .. 2048 blocks)
  * /horizon generator on|off
  * /horizon tes on|off     option 3, stage 1: a made-up hill drawn by the mod in 3D, far away (test only)
@@ -24,11 +25,15 @@ public final class HorizonCommands {
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
 				ClientCommandManager.literal("horizon")
 						.executes(c -> {
+							HorizonScreen.openSoon(); // the menu
+							return 1;
+						})
+						.then(ClientCommandManager.literal("info").executes(c -> {
 							for (String line : HorizonWorker.status()) {
 								say(c.getSource(), line);
 							}
 							return 1;
-						})
+						}))
 						.then(ClientCommandManager.literal("jarak")
 								.executes(c -> {
 									say(c.getSource(), "jarak generator sekarang " + HorizonConfig.radius + " blok (ubah: /horizon jarak <" + HorizonConfig.MIN_RADIUS + "-" + HorizonConfig.MAX_RADIUS + ">)");
