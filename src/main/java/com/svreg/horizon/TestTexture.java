@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
 import org.lwjgl.opengl.GL11C;
+import org.lwjgl.opengl.GL33C;
 
 /**
  * The test picture, 512 x 512, the same in both textures:
@@ -49,6 +50,22 @@ public final class TestTexture {
 
 	public static void tick() {
 		if (texA == null || broken) {
+			return;
+		}
+		// v0.1.1: the first test showed NEAREST: the texture's own LINEAR setting loses to a sampler object left bound
+		// on the unit Iris puts our texture on. Every tick: our texture's LINEAR again, and no sampler object on the
+		// higher units (3..31; Minecraft's own draws use the low ones and bind their samplers themselves), so the
+		// texture's own setting counts when Iris samples it
+		try {
+			linear(texA);
+			linear(texB);
+			int units = Math.min(32, GL11C.glGetInteger(0x8872 /* GL_MAX_TEXTURE_IMAGE_UNITS */));
+			for (int u = 3; u < units; u++) {
+				GL33C.glBindSampler(u, 0);
+			}
+		} catch (Throwable t) {
+			broken = true;
+			SvregHorizon.LOG.error("SvregHorizon: filter fix failed", t);
 			return;
 		}
 		long s = System.currentTimeMillis() / 1000L;
