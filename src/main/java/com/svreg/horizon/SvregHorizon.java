@@ -34,6 +34,7 @@ public class SvregHorizon implements ClientModInitializer {
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			HorizonMap.tick(client);
 			HorizonScreen.tick(client);
+			HorizonTest.tick();
 		});
 		ClientChunkEvents.CHUNK_LOAD.register((level, chunk) -> ChunkSampler.onLoad(level, chunk));
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> HorizonMap.leave());

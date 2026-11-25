@@ -18,6 +18,9 @@ public final class HorizonTest {
 	private static volatile boolean on = false;
 	private static double hx, hy, hz;          // the hill's foot, in the world
 	private static float[] verts = new float[0]; // x, y, z (relative to the foot) and colour, 4 corners per quad
+	private static volatile int drawn = 0;       // frames it was handed to the game in, since it was put up
+	private static long since = 0;
+	private static boolean told = false;
 	private static final int G = 48;             // cells across
 	private static final float R = 260f, H = 150f;
 
@@ -47,8 +50,21 @@ public final class HorizonTest {
 		hz = mc.player.getZ() + lz / l * dist;
 		hy = Math.floor(mc.player.getY()) - 12.0;
 		build();
+		drawn = 0;
+		since = System.currentTimeMillis();
+		told = false;
 		on = true;
 		return "bukit tes dipasang " + Math.round(dist) + " blok di depan kamu (render distance kamu " + rd + " blok). Lihat ke arah depan sekarang";
+	}
+
+	/** 3 s after it was put up: tells in chat whether the game asked for it every frame (to tell "not drawn" from "drawn but hidden") */
+	public static void tick() {
+		if (on && !told && System.currentTimeMillis() - since > 3000L) {
+			told = true;
+			HorizonMap.chat(drawn > 0
+					? "bukit tes: dikirim ke layar " + drawn + " kali dalam 3 detik (" + Math.round(hx) + ", " + Math.round(hy) + ", " + Math.round(hz) + ")"
+					: "bukit tes: nggak pernah digambar (event gambar nggak jalan)");
+		}
 	}
 
 	public static boolean isOn() {
@@ -131,6 +147,7 @@ public final class HorizonTest {
 				vc.addVertex(m, v[k], v[k + 1], v[k + 2]).setColor(Float.floatToRawIntBits(v[k + 3]));
 			}
 			ps.popPose();
+			drawn++;
 		} catch (Throwable t) {
 			on = false;
 			SvregHorizon.LOG.error("SvregHorizon: test hill failed", t);
