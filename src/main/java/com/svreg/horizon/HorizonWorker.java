@@ -58,6 +58,8 @@ public final class HorizonWorker {
 	// the generator's walk outward: ring r around (scanX, scanZ), step k along it
 	private static int scanX, scanZ, ring, step;
 	private static boolean scanDone;
+	private static int reported = 0;
+	private static boolean genError = false;
 
 	private HorizonWorker() {
 	}
@@ -115,18 +117,23 @@ public final class HorizonWorker {
 			newSession = false;
 			saveAll();
 			tiles.clear();
-			offers.clear();
 			session = pending;
+			reported = 0;
+			genError = false;
 			dir = session == null ? null : FabricLoader.getInstance().getGameDir().resolve("svreghorizon").resolve(session.world()).resolve(session.dim());
 			changes = 1;
 			builtX = builtZ = Integer.MIN_VALUE;
 			restartScan(centerX, centerZ);
 			if (session != null) {
 				SvregHorizon.LOG.info("SvregHorizon: map for {} {} ({})", session.world(), session.dim(), session.level() != null ? "chunks + world generator" : "chunks only");
+				HorizonMap.chat("peta aktif (" + (session.level() != null ? "chunk + generator dunia" : "chunk saja, generator cuma jalan di singleplayer") + "), posisi peta " + centerX * 8 + ", " + centerZ * 8);
 			}
 		}
 		if (session == null) {
-			offers.clear();
+			// (chunk samples that came in before the session is known wait for it; a long stay in a menu caps them)
+			while (offers.size() > 20000) {
+				offers.poll();
+			}
 			return;
 		}
 		long t0 = System.nanoTime();
@@ -165,7 +172,23 @@ public final class HorizonWorker {
 					}
 				}
 				if (get(tx, tz) == 0) {
-					set(tx, tz, generate(gen, rs, sea, tx, tz), false);
+					try {
+						set(tx, tz, generate(gen, rs, sea, tx, tz), false);
+					} catch (Throwable t) {
+						if (!genError) {
+							genError = true;
+							SvregHorizon.LOG.error("SvregHorizon: world generator failed", t);
+							HorizonMap.chat("generator dunia gagal: " + t);
+						}
+						scanDone = true;
+						break;
+					}
+				}
+				// progress, for testing: 500, 1000, 2000 blocks around you done
+				int doneBlocks = scanDone ? HALF * 8 : (ring - 1) * 8;
+				if (reported < 3 && doneBlocks >= (500 << reported)) {
+					HorizonMap.chat("generator: sampai " + (500 << reported) + " blok di sekitar kamu udah keisi");
+					reported++;
 				}
 			}
 		}

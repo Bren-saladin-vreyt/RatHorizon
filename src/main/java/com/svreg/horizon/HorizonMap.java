@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import org.lwjgl.system.MemoryUtil;
@@ -121,6 +122,19 @@ public final class HorizonMap {
 			}
 		}
 		tex.upload();
+	}
+
+	/** a line in the chat (from any thread), for testing on the phone without a log viewer */
+	public static void chat(String msg) {
+		Minecraft mc = Minecraft.getInstance();
+		mc.execute(() -> {
+			try {
+				if (mc.gui != null) {
+					mc.gui.getChat().addMessage(Component.literal("\u00a7b[SvregHorizon]\u00a7r " + msg));
+				}
+			} catch (Throwable ignored) {
+			}
+		});
 	}
 
 	private static String safe(String s) {
