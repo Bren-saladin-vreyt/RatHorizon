@@ -3,7 +3,7 @@
 	"id": "svreghorizon",
 	"version": "${version}",
 	"name": "SvregHorizon",
-	"description": "Distant Horizons versi SvregSky: mengirim peta tinggi dunia ke shaderpack SvregSky Shader Remade lewat tekstur dinamis (tahap 1: tekstur uji).",
+	"description": "Distant Horizons versi SvregSky: mengirim peta tinggi dunia ke shaderpack SvregSky Shader Remade lewat tekstur dinamis (peta tinggi dunia asli: chunk + generator dunia + biome).",
 	"authors": [
 		"Bren"
 	],
