@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"id": "svreghorizon",
+	"version": "${version}",
+	"name": "SvregHorizon",
+	"description": "Distant Horizons versi SvregSky: mengirim peta tinggi dunia ke shaderpack SvregSky Shader Remade lewat tekstur dinamis (tahap 1: tekstur uji).",
+	"authors": [
+		"Bren"
+	],
+	"license": "MIT",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"com.svreg.horizon.SvregHorizon"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.16.0",
+		"minecraft": "~1.21.11",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}
