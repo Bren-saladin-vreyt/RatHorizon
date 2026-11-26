@@ -55,8 +55,11 @@ public final class HorizonWorker {
 	private static Path dir;
 	private static int changes = 0, builtX = Integer.MIN_VALUE, builtZ = Integer.MIN_VALUE;
 	private static long lastBuild = 0, lastSave = 0;
-	// the generator's walk outward: ring r around (scanX, scanZ), step k along it
-	private static int scanX, scanZ, ring, step;
+	// the generator's walk outward: ring r around (scanX, scanZ), step k along it. It walks three times: first only
+	// every 4th sample (every 32 blocks, a sixteenth of the work, so the whole distance has its shape soon; the
+	// picture fills the gaps between them), then every 2nd, then all (known samples are skipped quickly)
+	private static int scanX, scanZ, ring, step, pass;
+	private static final int[] STRIDE = {4, 2, 1};
 	private static boolean scanDone;
 	private static int reported = 0;
 	private static final int[] REPORT_AT = {100, 250, 500, 1000, 2000};
@@ -114,7 +117,7 @@ public final class HorizonWorker {
 		} else if (genErrorText != null) {
 			gen = "generator: GAGAL - " + genErrorText;
 		} else {
-			gen = "generator: " + (scanDone ? "selesai" : "jalan") + ", sudah " + Math.max(0, ring - 1) * 8 + " / " + HorizonConfig.radius + " blok, "
+			gen = "generator: " + (scanDone ? "selesai" : "jalan, tahap " + (pass + 1) + "/3") + ", sudah " + (pass > 0 || scanDone ? HorizonConfig.radius : Math.max(0, ring - 1) * 8 * STRIDE[0]) + " / " + HorizonConfig.radius + " blok, "
 					+ genCount / secs + " titik/detik";
 		}
 		return new String[]{
@@ -188,7 +191,8 @@ public final class HorizonWorker {
 			genError = false;
 			genErrorText = null;
 		}
-		int rings = Math.min(HALF, HorizonConfig.radius / 8);
+		int stride = STRIDE[Math.min(pass, 2)];
+		int rings = Math.min(HALF, HorizonConfig.radius / 8) / stride + 1;
 		if (session.level() != null && HorizonConfig.generator) {
 			if (Math.abs(cx - scanX) > 16 || Math.abs(cz - scanZ) > 16) {
 				restartScan(cx, cz); // moved on: start again from the player (known samples are skipped quickly)
@@ -198,23 +202,33 @@ public final class HorizonWorker {
 			int sea = gen.getSeaLevel();
 			while (!scanDone && System.nanoTime() - t0 < SLICE_NS) {
 				int tx, tz;
+				// (on this pass's grid: the centre rounded to a multiple of the stride, ring r = r strides out)
+				int gx = Math.floorDiv(scanX, stride), gz = Math.floorDiv(scanZ, stride);
 				if (ring == 0) {
-					tx = scanX;
-					tz = scanZ;
+					tx = gx;
+					tz = gz;
 				} else {
 					// ring r: 8r samples, walked side by side
 					int side = step / (2 * ring), o2 = step % (2 * ring);
 					switch (side) {
-						case 0 -> { tx = scanX - ring + o2; tz = scanZ - ring; }
-						case 1 -> { tx = scanX + ring; tz = scanZ - ring + o2; }
-						case 2 -> { tx = scanX + ring - o2; tz = scanZ + ring; }
-						default -> { tx = scanX - ring; tz = scanZ + ring - o2; }
+						case 0 -> { tx = gx - ring + o2; tz = gz - ring; }
+						case 1 -> { tx = gx + ring; tz = gz - ring + o2; }
+						case 2 -> { tx = gx + ring - o2; tz = gz + ring; }
+						default -> { tx = gx - ring; tz = gz + ring - o2; }
 					}
 				}
+				tx *= stride;
+				tz *= stride;
 				if (++step >= Math.max(1, 8 * ring)) {
 					step = 0;
 					if (++ring >= rings) {
-						scanDone = true;
+						ring = 0;
+						if (++pass >= STRIDE.length) {
+							scanDone = true;
+						} else {
+							stride = STRIDE[pass];
+							rings = Math.min(HALF, HorizonConfig.radius / 8) / stride + 1;
+						}
 					}
 				}
 				if (get(tx, tz) == 0) {
@@ -233,7 +247,7 @@ public final class HorizonWorker {
 					}
 				}
 				// progress, for testing: 100 .. 2000 blocks around you done
-				int doneBlocks = scanDone ? rings * 8 : (ring - 1) * 8;
+				int doneBlocks = pass > 0 || scanDone ? HorizonConfig.radius : Math.max(0, ring - 1) * 8 * stride;
 				while (reported < REPORT_AT.length && doneBlocks >= REPORT_AT[reported]) {
 					HorizonMap.chat("generator: sampai " + REPORT_AT[reported] + " blok di sekitar kamu udah keisi");
 					reported++;
@@ -244,7 +258,7 @@ public final class HorizonWorker {
 		// once, 15 s in: how fast the generator runs on this device (to tell slow from stuck)
 		if (!speedTold && session.level() != null && HorizonConfig.generator && now - genStart > 15_000L) {
 			speedTold = true;
-			HorizonMap.chat("generator: " + genCount * 1000L / Math.max(1L, now - genStart) + " titik/detik, sudah " + Math.max(0, ring - 1) * 8 + " blok"
+			HorizonMap.chat("generator: " + genCount * 1000L / Math.max(1L, now - genStart) + " titik/detik, tahap " + (pass + 1) + "/3, sudah " + (pass > 0 ? HorizonConfig.radius : Math.max(0, ring - 1) * 8 * STRIDE[0]) + " blok"
 					+ (genError ? " (berhenti karena error)" : ""));
 		}
 		if (now - lastBuild > 500L && (changes > 0 || cx != builtX || cz != builtZ)) {
@@ -263,6 +277,7 @@ public final class HorizonWorker {
 		scanZ = cz;
 		ring = 0;
 		step = 0;
+		pass = 0;
 		scanDone = false;
 	}
 
@@ -288,6 +303,9 @@ public final class HorizonWorker {
 			for (int sx = 0; sx < N; sx++) {
 				int tx = cx + Math.floorMod(sx - cx + HALF, N) - HALF;
 				int v = get(tx, tz);
+				if (v == 0) {
+					v = between(tx, tz);
+				}
 				if (v != 0) {
 					k++;
 				}
@@ -299,6 +317,36 @@ public final class HorizonWorker {
 		changes = 0;
 		builtX = cx;
 		builtZ = cz;
+	}
+
+	/**
+	 * a sample not known yet, guessed from the generator's first pass around it (every 4th sample): the heights of
+	 * the known ones of the 4 around it, blended by how near they are; water and kind from the nearest. 0 if none.
+	 */
+	private static int between(int tx, int tz) {
+		int x0 = Math.floorDiv(tx, 4) * 4, z0 = Math.floorDiv(tz, 4) * 4;
+		float fx = (tx - x0) / 4f, fz = (tz - z0) / 4f;
+		float hs = 0f, ws = 0f, best = -1f;
+		int near = 0;
+		for (int j = 0; j < 2; j++) {
+			for (int i = 0; i < 2; i++) {
+				int c = get(x0 + i * 4, z0 + j * 4);
+				if (c == 0) {
+					continue;
+				}
+				float w = (i == 0 ? 1f - fx : fx) * (j == 0 ? 1f - fz : fz);
+				hs += w * ((c & 0xFFFF) - 128);
+				ws += w;
+				if (w > best) {
+					best = w;
+					near = c;
+				}
+			}
+		}
+		if (ws < 0.05f) {
+			return 0;
+		}
+		return Cell.pack(Math.round(hs / ws), (near >> 16) & 255, (near & Cell.WATER) != 0, false);
 	}
 
 	// ---------------------------------------------------------------- tiles
