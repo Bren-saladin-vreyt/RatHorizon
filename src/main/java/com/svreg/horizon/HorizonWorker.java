@@ -1,10 +1,11 @@
 package com.svreg.horizon;
 
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.levelgen.DensityFunction;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.QuartPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.ChunkGenerator;
-import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomState;
 
 import java.io.DataInputStream;
@@ -284,13 +285,14 @@ public final class HorizonWorker {
 	/** the ground at one sample, from the world generator (no chunk is made) */
 	private static int generate(ChunkGenerator gen, RandomState rs, int sea, int tx, int tz) {
 		int bx = tx * 8 + 4, bz = tz * 8 + 4;
-		ServerLevel lv = session.level();
-		int h = gen.getBaseHeight(bx, bz, Heightmap.Types.WORLD_SURFACE_WG, lv, rs);
-		boolean water = false;
-		if (h <= sea) {
-			water = gen.getBaseHeight(bx, bz, Heightmap.Types.OCEAN_FLOOR_WG, lv, rs) < h;
-		}
-		int kind = Biomes.kind(gen.getBiomeSource().getNoiseBiome(QuartPos.fromBlock(bx), QuartPos.fromBlock(Math.max(h - 1, session.minY())), QuartPos.fromBlock(bz), rs.sampler()));
+		// the world's own quick estimate of where its ground is (one look at the terrain's noise, the same the game
+		// uses before it builds a chunk), instead of building the whole column of blocks: many times cheaper,
+		// above all with heavy terrain mods (Tectonic), and close enough for land seen from far away
+		int ground = Mth.floor(rs.router().preliminarySurfaceLevel().compute(new DensityFunction.SinglePointContext(bx, 0, bz)));
+		ground = Mth.clamp(ground, session.minY(), session.minY() + 2000);
+		boolean water = ground < sea;
+		int h = Math.max(ground, sea) + 1; // y of the first air above (the water's surface over the sea)
+		int kind = Biomes.kind(gen.getBiomeSource().getNoiseBiome(QuartPos.fromBlock(bx), QuartPos.fromBlock(Math.max(ground, session.minY())), QuartPos.fromBlock(bz), rs.sampler()));
 		return Cell.pack(h, kind, water, false);
 	}
 
