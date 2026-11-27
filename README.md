@@ -23,7 +23,7 @@ Tiap push ke `main` dibuild GitHub Actions; jar ada di release `latest`.
 ## Menu
 
 Tekan **H** (bisa diganti di Controls) atau ketik `/horizon` di chat. Isinya: status peta, generator dunia ON/OFF,
-jarak generator, dan bukit tes 3D (opsi 3). Jarak gambar dan kabut daratan diatur di menu shader (Daratan Jauh).
+jarak generator. Jarak gambar dan kabut daratan diatur di menu shader (Daratan Jauh).
 
 ## Perintah di chat
 
@@ -31,6 +31,5 @@ jarak generator, dan bukit tes 3D (opsi 3). Jarak gambar dan kabut daratan diatu
 - `/horizon info` — status peta di chat: sumber data, sampai mana generator, kecepatannya, error kalau ada
 - `/horizon jarak <256-2048>` — seberapa jauh generator dunia ngisi peta (blok). Makin kecil makin cepet selesai dan makin enteng
 - `/horizon generator on|off` — nyalain/matiin generator dunia (singleplayer)
-- `/horizon tes on|off` — bukit tes 3D (opsi 3)
 
 Setelan disimpan di `.minecraft/config/svreghorizon.properties`.

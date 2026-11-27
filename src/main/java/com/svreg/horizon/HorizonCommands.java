@@ -11,7 +11,6 @@ import net.minecraft.network.chat.Component;
  * /horizon info            the map's state in chat (where its data comes from, how far the generator got, how fast)
  * /horizon jarak <blok>    how far the world generator fills the map (256 .. 2048 blocks)
  * /horizon generator on|off
- * /horizon tes on|off     option 3, stage 1: a made-up hill drawn by the mod in 3D, far away (test only)
  */
 public final class HorizonCommands {
 	private HorizonCommands() {
@@ -47,16 +46,6 @@ public final class HorizonCommands {
 											say(c.getSource(), "jarak generator: " + HorizonConfig.radius + " blok");
 											return 1;
 										})))
-						.then(ClientCommandManager.literal("tes")
-								.then(ClientCommandManager.literal("on").executes(c -> {
-									say(c.getSource(), HorizonTest.start());
-									return 1;
-								}))
-								.then(ClientCommandManager.literal("off").executes(c -> {
-									HorizonTest.stop();
-									say(c.getSource(), "bukit tes dihapus");
-									return 1;
-								})))
 						.then(ClientCommandManager.literal("generator")
 								.then(ClientCommandManager.literal("on").executes(c -> {
 									HorizonConfig.generator = true;

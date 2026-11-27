@@ -94,17 +94,6 @@ public class HorizonScreen extends Screen {
 				.pos(x, y + 24).size(w, 20)
 				.tooltip(Tooltip.create(Component.literal("Seberapa jauh dari kamu peta diisi (ketuk buat ganti). Kecil = cepat penuh dan enteng. Samain sama Jarak Daratan Jauh di menu shader.")))
 				.build());
-		this.addRenderableWidget(Button.builder(onOff("Bukit tes 3D (opsi 3)", HorizonTest.isOn()), b -> {
-					if (HorizonTest.isOn()) {
-						HorizonTest.stop();
-					} else {
-						HorizonMap.chat(HorizonTest.start());
-					}
-					b.setMessage(onOff("Bukit tes 3D (opsi 3)", HorizonTest.isOn()));
-				})
-				.pos(x, y + 48).size(w, 20)
-				.tooltip(Tooltip.create(Component.literal("Tes: mod menggambar satu bukit palsu 3D jauh di depan kamu. Buat ngecek daratan 3D bisa tampil di HP kamu.")))
-				.build());
 		this.addRenderableWidget(Button.builder(Component.literal("Selesai"), b -> this.onClose())
 				.pos(this.width / 2 - 60, this.height - 28).size(120, 20)
 				.build());
