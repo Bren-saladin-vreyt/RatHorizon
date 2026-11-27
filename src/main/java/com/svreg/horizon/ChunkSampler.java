@@ -7,7 +7,7 @@ import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 
-/** a chunk the client loaded: its surface, one sample per 8 x 8 blocks (4 per chunk, the ground without trees), queued for the worker */
+/** a chunk the client loaded: its surface, one sample per 8 x 8 blocks (4 per chunk, the ground without trees, and what covers it seen from above), queued for the worker */
 public final class ChunkSampler {
 	private ChunkSampler() {
 	}
@@ -42,7 +42,23 @@ public final class ChunkSampler {
 					p.set(cx, mid, cz);
 					boolean water = mid <= top + 1 && chunk.getBlockState(p).getFluidState().is(FluidTags.WATER);
 					int kind = Biomes.kind(chunk.getNoiseBiome(QuartPos.fromBlock(cx), QuartPos.fromBlock(top), QuartPos.fromBlock(cz)));
-					HorizonWorker.offer(Math.floorDiv(cx, 8), Math.floorDiv(cz, 8), Cell.pack(top + 1, kind, water, true));
+					// what the patch looks like from above: the top block (leaves and roofs included) of every other
+					// column, the kind most of them are
+					int[] votes = new int[16];
+					for (int lz = j * 8; lz < j * 8 + 8; lz += 2) {
+						for (int lx = i * 8; lx < i * 8 + 8; lx += 2) {
+							int ty = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, lx, lz);
+							p.set(x0 + lx, ty, z0 + lz);
+							votes[Surface.kind(chunk.getBlockState(p), chunk, p)]++;
+						}
+					}
+					int surf = 0;
+					for (int k = 1; k < 16; k++) {
+						if (votes[k] > votes[surf] || (surf == 0 && votes[k] > 0 && votes[k] >= votes[0])) {
+							surf = k;
+						}
+					}
+					HorizonWorker.offer(Math.floorDiv(cx, 8), Math.floorDiv(cz, 8), Cell.pack(top + 1, kind | (surf << 4), water, true));
 				}
 			}
 		} catch (Throwable t) {

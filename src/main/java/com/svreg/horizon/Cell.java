@@ -3,7 +3,7 @@ package com.svreg.horizon;
 /**
  * One map sample (8 x 8 blocks) packed in an int. 0 = not known yet.
  * bits 0-15 height + 128 (block y of the first air above the surface, water counts as surface)
- * bits 16-23 kind of biome (see Biomes), bit 24 water on top, bit 25 from a real chunk (wins over the generator),
+ * bits 16-23 kind of biome (see Biomes) in the low 4, kind of ground seen from above (see Surface) in the high 4, bit 24 water on top, bit 25 from a real chunk (wins over the generator),
  * bit 26 known.
  */
 public final class Cell {
@@ -19,7 +19,7 @@ public final class Cell {
 
 	/**
 	 * The texture's pixel for a sample at map texel (tx, tz), in NativeImage's own byte order (ABGR in an int):
-	 * R, G = height + 128 (high, low byte), B = kind of biome,
+	 * R, G = height + 128 (high, low byte), B = kind of biome + 16 x kind of ground,
 	 * A = 128 known | 64 water | 16 (fixed mark: bits 4-5 = 01) | (tz / 512 mod 4) << 2 | (tx / 512 mod 4):
 	 * the shader checks the mark and which 512-texel period the texel holds, so an old texel from the other side of
 	 * the wrapped map (or a missing texture) is never read as land.
